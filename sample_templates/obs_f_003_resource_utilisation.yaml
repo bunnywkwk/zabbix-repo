@@ -1,0 +1,52 @@
+zabbix_export:
+  version: '8.0'
+  template_groups:
+  - uuid: bf96c0a98f57432ea3f5b0e0aba7a10d
+    name: Linux servers
+  templates:
+  - uuid: bb0353ad195642b3a21fbfb887cc3ec9
+    template: RHEL Operational Requirements
+    name: RHEL Operational Requirements
+    description: Custom template satisfying spreadsheet requirement OBS-F-003 (Resource
+      Utilisation)
+    groups:
+    - name: Linux servers
+    items:
+    - uuid: ada3d04a198f49dd80698ebf69e5c52d
+      name: Available Memory Percentage
+      type: ZABBIX_PASSIVE
+      key: vm.memory.size[pavailable]
+      value_type: FLOAT
+      units: '%'
+      delay: 1m
+      triggers:
+      - uuid: a97a6d49f7d34372bce21ea3b8f5a2ca
+        expression: last(/RHEL Operational Requirements/vm.memory.size[pavailable])<10
+        name: 'CRITICAL: Available memory is below 10% on {HOST.NAME}'
+        priority: HIGH
+      - uuid: 5d876b0d5d2f458f9cc8a00bb39262c6
+        expression: last(/RHEL Operational Requirements/vm.memory.size[pavailable])<20
+        name: 'WARNING: Available memory is below 20% on {HOST.NAME}'
+        priority: WARNING
+        dependencies:
+        - name: 'CRITICAL: Available memory is below 10% on {HOST.NAME}'
+          expression: last(/RHEL Operational Requirements/vm.memory.size[pavailable])<10
+    - uuid: a3d3ce90e8354853aaa4fe00986b7332
+      name: CPU Utilisation Percentage
+      type: ZABBIX_PASSIVE
+      key: system.cpu.util
+      value_type: FLOAT
+      units: '%'
+      delay: 1m
+      triggers:
+      - uuid: 0fe5b0d1acc149afa734991b066fa0c9
+        expression: min(/RHEL Operational Requirements/system.cpu.util,5m)>95
+        name: 'CRITICAL: CPU utilisation is above 95% for 5 minutes on {HOST.NAME}'
+        priority: HIGH
+      - uuid: 48132f958f5d4113ac1dab9453fc026f
+        expression: min(/RHEL Operational Requirements/system.cpu.util,5m)>80
+        name: 'WARNING: CPU utilisation is above 80% for 5 minutes on {HOST.NAME}'
+        priority: WARNING
+        dependencies:
+        - name: 'CRITICAL: CPU utilisation is above 95% for 5 minutes on {HOST.NAME}'
+          expression: min(/RHEL Operational Requirements/system.cpu.util,5m)>95

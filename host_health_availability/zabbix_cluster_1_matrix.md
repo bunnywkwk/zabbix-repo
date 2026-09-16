@@ -1,0 +1,19 @@
+# Implementation Matrix: Host Health & Availability
+
+This matrix evaluates every requirement under the `Host Health & Availability` cluster from the RHEL Operational spreadsheet, pairing it with its explicit threshold from `Annex A` and justifying the technical approach in Zabbix.
+
+| ID | Title | Threshold (from Annex A) | Approach | Achievable? & Justification |
+| :--- | :--- | :--- | :--- | :--- |
+| **OBS-F-001** | Host State Monitoring | None (State transitions) | Native Check (`agent.ping`) | **Yes.** Uses Zabbix's internal nodata() trigger to detect offline hosts without needing agent execution. |
+| **OBS-F-002** | Lifecycle Event Logging | None (Record all events) | Active Log Check (`log[]`) | **Yes.** The Zabbix agent will tail `/var/log/messages`. *Justification:* Requires strict ACLs (`setfacl`) to give the Zabbix user read-only access without granting root privileges. |
+| **OBS-F-003** | Resource Utilisation | **CPU:** 80% (5m) / 95% (5m)<br>**Mem:** < 20% / < 10%<br>**IO Wait:** 20% (5m) / 40% (5m)<br>**Swap:** Any sustained (5m) | Native Checks (`system.cpu.util`, `vm.memory.size`, etc.) | **Yes.** Fully achievable using 100% secure native keys. Zero shell execution required. |
+| **OBS-F-004** | Service Status Monitoring | Alert on failure/stop | Native Check (`systemd.unit.info`) | **Yes.** Directly targets operationally critical services (e.g., `sshd`) using the systemd D-Bus to keep the dashboard uncluttered and focused. |
+| **OBS-F-005** | Unplanned Restart | Alert if outside maintenance | Native Check (`system.uptime`) | **Yes.** Alerts if system uptime drops. Maintenance windows will be handled via Zabbix's built-in Maintenance scheduler. |
+| **OBS-F-012** | Boot Outcome | Alert on failed units | Active Log Check (`log[]`) | **Yes.** The agent natively tails logs for boot failure strings, avoiding unsecure `systemctl --failed` scripts. |
+| **OBS-F-013** | Kernel Error Monitoring | Alert on severity | Active Log Check (`log[]`) | **Yes.** The agent will parse `/var/log/messages` for kernel errors. Requires the same strict ACL read-only permissions as OBS-F-002. |
+| **OBS-F-015** | Memory Exhaustion | Record host, time, process | Active Log Check (`log[]`) | **Yes.** The agent will look for `Out of memory: Killed process` strings in the kernel ring buffer/logs. |
+| **OBS-F-016** | Critical Process | **CPU:** 80% of 1 core (10m)<br>**Mem:** 80% of host memory | Native Checks (`proc.num`, `proc.cpu.util`, `proc.mem`) | **Yes.** Monitored via native kernel tracking. Zabbix Agent 2 itself is used as the target for this template. |
+| **OBS-F-017** | Restart Loop Detection | **Warn:** 3 in 10 min<br>**Crit:** 5 in 10 min | Native Check (`systemd.unit.info`) | **Yes.** Natively extracts the `NRestarts` property for explicit services (e.g., `sshd`) and subtracts historical values to hit the math thresholds perfectly. |
+| **OBS-F-018** | File Descriptors | **Warn:** 70% of limit<br>**Crit:** 85% of limit | **Calculated Items + Regex** | **Yes.** Bypassed the need for bash scripts by actively dividing regex-extracted active descriptors against `kernel.maxfiles` directly inside the Zabbix database to perfectly calculate the percentage. |
+| **OBS-F-019** | Physical Hardware Health | Per vendor specification | Native IPMI / SNMP | **YES.** *Justification:* Cannot be tested on local VMs due to lack of physical sensors. For physical client deployments, this is achieved by pointing Zabbix natively to the server's Out-Of-Band management controller (e.g., iDRAC/iLO) via IPMI, bypassing the Linux OS agent entirely. |
+| **OBS-F-020** | Hardware Event Log | Forward to central platform | Native IPMI / SNMP | **YES.** *Justification:* Same as OBS-F-019. Hardware event logs are extracted directly from the BMC/management controller via IPMI/SNMP templates. |
