@@ -121,3 +121,10 @@ zabbix_export:
         expression: last(/Scope Storage and Filesystem/lvm.vg.free[{#VGNAME}])/last(/Scope Storage and Filesystem/lvm.vg.size[{#VGNAME}])*100<10
         name: '[OBS-F-028] CRITICAL: LVM {#VGNAME} free space < 10%'
         priority: HIGH
+      - uuid: a7f9b8c2d1e443a2b5c6d7e8f9000005
+        expression: last(/Scope Storage and Filesystem/lvm.vg.free[{#VGNAME}])/last(/Scope Storage and Filesystem/lvm.vg.size[{#VGNAME}])*100<20
+        name: '[OBS-F-028] WARNING: LVM {#VGNAME} free space < 20%'
+        priority: WARNING
+        dependencies:
+        - name: '[OBS-F-028] CRITICAL: LVM {#VGNAME} free space < 10%'
+          expression: last(/Scope Storage and Filesystem/lvm.vg.free[{#VGNAME}])/last(/Scope Storage and Filesystem/lvm.vg.size[{#VGNAME}])*100<10
