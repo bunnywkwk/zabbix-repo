@@ -1,0 +1,93 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+
+    - name: Scope Templates
+      uuid: 8ef96b18c230490a9a0a9e2307226339
+  templates:
+
+    - uuid: c9b9b8c2d1e443a2b5c6d7e8f9000200
+      template: Scope Privileged Activity
+      name: Scope Privileged Activity
+      description: Monitors sudo usage, elevation failures, and direct root 
+        logins natively via /var/log/secure
+
+# TEMPLATE GROUPS
+# Categorizes the template in the Zabbix UI
+      groups:
+
+        - name: Scope Templates
+
+# MACROS (VARIABLES)
+# Dynamic variables that can be overridden per-host.
+      macros:
+        - macro: '{$PRIV_ACCOUNT}'
+          value: root
+          description: The designated Privileged/Admin account that should never
+            be logged into directly via SSH.
+
+# ITEMS (DATA COLLECTION)
+# These define the exact metrics collected from the host.
+      items:
+
+        # Responsible for Collecting: Privilege: Sudo Command Execution
+        - uuid: c9b9b8c2d1e443a2b5c6d7e8f9000201
+          name: 'Privilege: Sudo Command Execution'
+          type: ZABBIX_ACTIVE
+          key: log[/var/log/secure,"(?i)sudo.*COMMAND="]
+          value_type: LOG
+          delay: 1s
+
+        # Responsible for Collecting: Privilege: Failed Sudo Execution
+        - uuid: c9b9b8c2d1e443a2b5c6d7e8f9000202
+          name: 'Privilege: Failed Sudo Execution'
+          type: ZABBIX_ACTIVE
+          key: log.count[/var/log/secure,"(?i)sudo.*(incorrect password|command 
+            not allowed)"]
+          value_type: UNSIGNED
+          delay: 1m
+
+        # Responsible for Collecting: Privilege: Direct Privileged Login
+        - uuid: c9b9b8c2d1e443a2b5c6d7e8f9000203
+          name: 'Privilege: Direct Privileged Login'
+          type: ZABBIX_ACTIVE
+          key: log[/var/log/secure,"(?i)Accepted.*for {$PRIV_ACCOUNT}"]
+          value_type: LOG
+          delay: 1s
+
+# TRIGGERS (ALARMS)
+# Mathematical thresholds that evaluate item data to fire alerts.
+  triggers:
+
+    # Responsible for Alerting: [SEC-F-018] CRITICAL: Repeated Failed Privilege Escalation (5 in 10 min)
+    - uuid: c9b9b8c2d1e443a2b5c6d7e8f9000204
+      expression: sum(/Scope Privileged 
+        Activity/log.count[/var/log/secure,"(?i)sudo.*(incorrect 
+        password|command not allowed)"],10m)>=5
+      name: '[SEC-F-018] CRITICAL: Repeated Failed Privilege Escalation (5 in 10 min)'
+      priority: HIGH
+
+    # Responsible for Alerting: [SEC-F-018] WARNING: Repeated Failed Privilege Escalation (3 in 10 min)
+    - uuid: c9b9b8c2d1e443a2b5c6d7e8f9000205
+      expression: sum(/Scope Privileged 
+        Activity/log.count[/var/log/secure,"(?i)sudo.*(incorrect 
+        password|command not allowed)"],10m)>=3
+      name: '[SEC-F-018] WARNING: Repeated Failed Privilege Escalation (3 in 10 min)'
+      priority: WARNING
+      dependencies:
+
+        # Responsible for Alerting: Metric
+        - name: '[SEC-F-018] CRITICAL: Repeated Failed Privilege Escalation (5 in
+            10 min)'
+          expression: sum(/Scope Privileged 
+            Activity/log.count[/var/log/secure,"(?i)sudo.*(incorrect 
+            password|command not allowed)"],10m)>=5
+
+    # Responsible for Alerting: [SEC-F-019] CRITICAL: Direct interactive login to {$PRIV_ACCOUNT} detected!
+    - uuid: c9b9b8c2d1e443a2b5c6d7e8f9000206
+      expression: length(last(/Scope Privileged 
+        Activity/log[/var/log/secure,"(?i)Accepted.*for {$PRIV_ACCOUNT}"]))>0 
+        and nodata(/Scope Privileged 
+        Activity/log[/var/log/secure,"(?i)Accepted.*for {$PRIV_ACCOUNT}"],5m)=0
+      name: '[SEC-F-019] CRITICAL: Direct interactive login to {$PRIV_ACCOUNT} detected!'
+      priority: HIGH

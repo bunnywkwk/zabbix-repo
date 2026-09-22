@@ -1,0 +1,119 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+
+    - uuid: 8ef96b18c230490a9a0a9e2307226339
+      name: Scope Templates
+  templates:
+
+    - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000100
+      template: Scope Host Access
+      name: Scope Host Access
+      description: Monitors Host Access logins and lockouts natively via 
+        /var/log/secure
+
+# TEMPLATE GROUPS
+# Categorizes the template in the Zabbix UI
+      groups:
+
+        - name: Scope Templates
+
+# ITEMS (DATA COLLECTION)
+# These define the exact metrics collected from the host.
+      items:
+
+        # Responsible for Collecting: Host Access: Successful Logins
+        - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000101
+          name: 'Host Access: Successful Logins'
+          type: ZABBIX_ACTIVE
+          key: log[/var/log/secure,"(?i)(Accepted publickey|Accepted password)"]
+          value_type: LOG
+          delay: 1s
+
+        # Responsible for Collecting: Host Access: Failed Logins
+        - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000102
+          name: 'Host Access: Failed Logins'
+          type: ZABBIX_ACTIVE
+          key: log.count[/var/log/secure,"(?i)Failed password.*{$STD_ACCOUNT}"]
+          value_type: UNSIGNED
+          delay: 1m
+
+        # Responsible for Collecting: Host Access: Session Closed
+        - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000103
+          name: 'Host Access: Session Closed'
+          type: ZABBIX_ACTIVE
+          key: log[/var/log/secure,"(?i)session closed for user"]
+          value_type: LOG
+          delay: 1s
+
+        # Responsible for Collecting: Host Access: Failed Logins (Privileged)
+        - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000109
+          name: 'Host Access: Failed Logins (Privileged)'
+          type: ZABBIX_ACTIVE
+          key: log.count[/var/log/secure,"(?i)Failed password.*{$PRIV_ACCOUNT}"]
+          value_type: UNSIGNED
+          delay: 1m
+
+# MACROS (VARIABLES)
+# Dynamic variables that can be overridden per-host.
+      macros:
+        - macro: '{$PRIV_ACCOUNT}'
+          value: frqadmin
+          description: The designated Privileged/Admin account for strict Brute 
+            Force tracking.
+        - macro: '{$STD_ACCOUNT}'
+          value: zabbix
+          description: The designated Standard account for normal Brute Force 
+            tracking.
+
+# TRIGGERS (ALARMS)
+# Mathematical thresholds that evaluate item data to fire alerts.
+  triggers:
+
+    # Responsible for Alerting: [SEC-F-003] CRITICAL: Brute Force Detected - Standard Account ({$STD_ACCOUNT})
+    - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000110
+      expression: sum(/Scope Host Access/log.count[/var/log/secure,"(?i)Failed 
+        password.*{$STD_ACCOUNT}"],5m)>8
+      name: '[SEC-F-003] CRITICAL: Brute Force Detected - Standard Account ({$STD_ACCOUNT})
+        (8 failures in 5 min)'
+      priority: HIGH
+
+    # Responsible for Alerting: [SEC-F-003] WARNING: Brute Force Detected - Standard Account ({$STD_ACCOUNT})
+    - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000111
+      expression: sum(/Scope Host Access/log.count[/var/log/secure,"(?i)Failed 
+        password.*{$STD_ACCOUNT}"],5m)>5
+      name: '[SEC-F-003] WARNING: Brute Force Detected - Standard Account ({$STD_ACCOUNT})
+        (5 failures in 5 min)'
+      priority: WARNING
+      dependencies:
+
+        # Responsible for Alerting: Metric
+        - name: '[SEC-F-003] CRITICAL: Brute Force Detected - Standard Account ({$STD_ACCOUNT})
+            (8 failures in 5 min)'
+          expression: sum(/Scope Host 
+            Access/log.count[/var/log/secure,"(?i)Failed 
+            password.*{$STD_ACCOUNT}"],5m)>8
+
+    # Responsible for Alerting: [SEC-F-003] CRITICAL: Brute Force Detected - Privileged Account ({$PRIV_ACCOUNT})
+    - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000112
+      expression: sum(/Scope Host Access/log.count[/var/log/secure,"(?i)Failed 
+        password.*{$PRIV_ACCOUNT}"],5m)>5
+      name: '[SEC-F-003] CRITICAL: Brute Force Detected - Privileged Account ({$PRIV_ACCOUNT})
+        (5 failures in 5 min)'
+      priority: HIGH
+
+    # Responsible for Alerting: [SEC-F-003] WARNING: Brute Force Detected - Privileged Account ({$PRIV_ACCOUNT})
+    - uuid: b8a9b8c2d1e443a2b5c6d7e8f9000113
+      expression: sum(/Scope Host Access/log.count[/var/log/secure,"(?i)Failed 
+        password.*{$PRIV_ACCOUNT}"],5m)>3
+      name: '[SEC-F-003] WARNING: Brute Force Detected - Privileged Account ({$PRIV_ACCOUNT})
+        (3 failures in 5 min)'
+      priority: WARNING
+      dependencies:
+
+        # Responsible for Alerting: Metric
+        - name: '[SEC-F-003] CRITICAL: Brute Force Detected - Privileged Account ({$PRIV_ACCOUNT})
+            (5 failures in 5 min)'
+          expression: sum(/Scope Host 
+            Access/log.count[/var/log/secure,"(?i)Failed 
+            password.*{$PRIV_ACCOUNT}"],5m)>5
